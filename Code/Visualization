@@ -1,0 +1,122 @@
+##Overall UMAP
+DimPlot(Lobe14, label = FALSE, sizes.highlight = 0.05) + scale_color_manual(values = c("#F27067","#E9A548", "#F0E27B","#CADE72","#9FCE65", "#76C58B", "#7DCECE","#5EC0DC","#54A7DC","#9A7FBA","#D77FB4", "#E5689C", "#A55168")) 
+
+##Highlighted UMAPs
+#Epithelial: highlight cluster 11,1,4,7,5,6,14
+DimPlot(Lobe14, label = FALSE, sizes.highlight = 0.05) + scale_color_manual(values = c("#F9B747","#D1E1F4","#F6AAC4", "#77B282","#94735F","#F7EC1C","#B9529F","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8", "#B9B8B8","#B9B8B8","#B9B8B8")) 
+
+#FRC's: highlight cluster 9
+DimPlot(Lobe14, label = FALSE, sizes.highlight = 0.05) + scale_color_manual(values = c("#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#E0545B","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8")) 
+
+#Lymphoid: highlight cluster 10,12,8,2,3,13 
+DimPlot(Lobe14, label = FALSE, sizes.highlight = 0.05) + scale_color_manual(values = c("#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#B9B8B8","#E26C89","#6887C4","#9FD084","#F5F08E","#BD78B2","#F1A11F")) 
+
+
+###Making dotplots with all clusters that are not directly of interest combined into one column
+##Epithelial Dotplot
+subsetEpi <- subset(x = Lobe14, idents = c("1", "11", "4", "14", "7", "6","5"), invert = FALSE)
+subsetEpi <- FindVariableFeatures(subsetEpi, selection.method = "vst", nfeatures = 2000)
+DimPlot(subsetEpi, label = FALSE)
+markers <- FindAllMarkers(subsetEpi, only.pos=T, min.pct=0.25, logfc.threshold=0.25, assay='RNA')
+
+combinedLymph <- subset(x = Lobe14, idents = c("9", "10", "12", "8", "2", "3", "13"), invert = FALSE)
+combinedLymph <- FindVariableFeatures(combinedLymph, selection.method = "vst", nfeatures = 2000)
+combinedLymph <- FindClusters(combinedLymph, resolution = c(0.00001), verbose=T)
+DimPlot(combinedLymph, label = FALSE)
+markers <- FindAllMarkers(combinedLymph, only.pos=T, min.pct=0.25, logfc.threshold=0.25, assay='RNA')
+
+all.combined <- merge(subsetEpi, y = combinedLymph, add.cell.ids = c("Epi", "Lymph"), project = "LCK")
+markers <- FindAllMarkers(all.combined, only.pos=T, min.pct=0.25, logfc.threshold=0.25, assay='RNA')
+
+all.combined@active.ident <- factor(all.combined@active.ident, 
+                                    levels=c(11, 1, 4, 7, 5, 6, 14, 0))
+
+featuresEpit<- c("cldne", "krt1-19d", "dhrs13a.2", "ponzr2", "si:ch211-217k17.9", "cldna", "upk3b", "rapgefl1", "foxq1a", "egfra", "col1a2", "itgb4", "epgn", "krtt1c19e", "zgc:136930","ccl25a","ccl25b", "muc5.1", "muc5.2", "p2rx1", "si:dkey-65b12.6", "agr2", "atoh1a", "kcnd2", "chga", "srrm4", "penka", "alox12", "alox5a", "adgrf3a", "avil", "adgrg11", "sox8b", "plcg2", "pou2f3", "gng13a", "id2b", "tuba1a", "alk", "si:ch211-152c2.3")
+Epit <- DotPlot(object = all.combined, features = featuresEpit)
+Epit
+Epit + theme(axis.text.x = element_text(size = 12, angle = 90),
+             axis.text.y = element_text(size = 12, angle = 90), 
+             legend.text = element_text(angle = 90),
+             axis.title = element_text(angle=90),
+             axis.title.y = element_text(angle = 90))
+
+##Lymphocyte Dotplot
+subsetLymph <- subset(x = Lobe14, idents = c("10", "12", "8", "2", "3", "13"), invert = FALSE)
+subsetLymph <- FindVariableFeatures(subsetLymph, selection.method = "vst", nfeatures = 2000)
+DimPlot(subsetLymph, label = FALSE)
+markers <- FindAllMarkers(subsetLymph, only.pos=T, min.pct=0.25, logfc.threshold=0.25, assay='RNA')
+
+combinedEpi <- subset(x = Lobe14, idents = c("9", "1", "11", "4", "14", "7", "6","5"), invert = FALSE)
+combinedEpi <- NormalizeData(combinedEpi, normalization.method = "LogNormalize", scale.factor = 100)
+combinedEpi <- FindVariableFeatures(combinedEpi, selection.method = "vst", nfeatures = 2000)
+top10 <- head(VariableFeatures(combinedEpi), 10)
+all.genes <- rownames(combinedEpi)
+combinedEpi <- ScaleData(combinedEpi, features = all.genes)
+combinedEpi <- RunPCA(combinedEpi, npcs = 65, features = VariableFeatures(object = combinedEpi))
+combinedEpi <- JackStraw(combinedEpi, num.replicate = 100, dims=65)
+combinedEpi <- ScoreJackStraw(combinedEpi, dims = 1:65)
+JackStrawPlot(combinedEpi, dims = 1:65)
+combinedEpi <- RunUMAP(combinedEpi, dims = 1:40)
+combinedEpi <- FindNeighbors(combinedEpi, reduction = "pca", dims = 1:40)
+combinedEpi <- FindClusters(combinedEpi, resolution = c(0.00000001), verbose=T)
+DimPlot(combinedEpi, label = FALSE)
+markers <- FindAllMarkers(combinedEpi, only.pos=T, min.pct=0.25, logfc.threshold=0.25, assay='RNA')
+
+all.combined <- merge(subsetLymph, y = combinedEpi, add.cell.ids = c("Epi", "Lymph"), project = "LCK")
+markers <- FindAllMarkers(all.combined, only.pos=T, min.pct=0.25, logfc.threshold=0.25, assay='RNA')
+
+all.combined@active.ident <- factor(all.combined@active.ident, 
+                                    levels=c(10, 12, 8, 2, 3, 13,0))
+
+featuresLymph <- c("hbaa1", "hbba1", "cahz", "creg1", "nt5c2l1", "mpeg1.1", "csf1ra", "marco", "grn1", "tlr2", "mhc2dab", "cd79b", "igl1c3", "igl3v5", "pax5", "blnk", "lck", "zap70", "sla2", "ccr9a", "znf385b", "tcf7", "sesn1", "si:dkey-109a10.2", "ccr7", "prf1.1", "si:dkeyp-13d12.23", "si:ch211-93g21.1", "ptprr", "mki67", "top2a", "pcna", "gata3")
+Lym <- DotPlot(object = all.combined, features = featuresLymph)
+Lym
+Lym + theme(axis.text.x = element_text(size = 12, angle = 90),
+            axis.text.y = element_text(size = 12, angle = 90), 
+            legend.text = element_text(angle = 90),
+            axis.title = element_text(angle=90),
+            axis.title.y = element_text(angle = 90))
+
+##FRCs:
+featuresFRC<- c( "pdgfrb", "pdgfrl", "vim", "spock3", "cxcl12a", "ccl25b")
+FRC <- DotPlot(object = Lobe14, features = featuresFRC)
+FRC
+FRC + theme(axis.text.x = element_text(size = 12, angle = 90),
+                    axis.text.y = element_text(size = 12, angle = 90), 
+                    legend.text = element_text(angle = 90),
+                    axis.title = element_text(angle=90),
+                    axis.title.y = element_text(angle = 90))
+
+##Creation of CXCL signaling network circle plot using CellChat
+devtools::install_github("sqjin/CellChat")
+devtools::install_github("jokergoo/ComplexHeatmap")
+devtools::install_github("jokergoo/circlize")
+install.packages('NMF')
+
+library(CellChat)
+library(patchwork)
+library(NMF)
+options(stringsAsFactors = FALSE)
+
+cellchat <- createCellChat(object = Lobe14, group.by = "ident")
+levels(cellchat@idents) # show factor levels of the cell labels
+groupSize <- as.numeric(table(cellchat@idents))
+CellChatDB <- CellChatDB.zebrafish 
+showDatabaseCategory(CellChatDB)
+CellChatDB.use <- subsetDB(CellChatDB, search = "Secreted Signaling") # use Secreted Signaling
+CellChatDB.use <- subsetDB(CellChatDB) # use Secreted Signaling
+cellchat@DB <- CellChatDB.use
+cellchat <- subsetData(cellchat)
+future::plan("multisession", workers = 4)
+cellchat <- identifyOverExpressedGenes(cellchat)
+cellchat <- identifyOverExpressedInteractions(cellchat)
+computeAveExpr(cellchat, features = c("CXCL12","CXCR4"), type =  "truncatedMean", trim = 0.1)
+unique(cellchat@idents)
+cellchat <- computeCommunProb(cellchat)
+cellchat <- filterCommunication(cellchat, min.cells = 10)
+cellchat <- computeCommunProbPathway(cellchat)
+cellchat <- aggregateNet(cellchat)
+groupSize <- as.numeric(table(cellchat@idents))
+# Circle plot
+par(mfrow=c(1,1))
+netVisual_aggregate(cellchat, signaling = pathways.show, layout = "circle")
